@@ -1,0 +1,16 @@
+api.spec
+.venv/
+node_modules/
+build/
+dist/
+pycalcdist/
+.pytest_cache/
+__pycache__/
+*.pyc
+.DS_Store
+.vscode/
+.idea/
+*.log
+*.sqlite3
+.env.keys
+test-project/
