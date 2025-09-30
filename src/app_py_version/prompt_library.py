@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Prompt Library for Python Version Analyzer
+Prompt Library for Python Version Analyzer and Migration Executor
 
 This module contains all AI prompts used in the Python version analysis and migration process.
-Centralizing prompts makes them easier to maintain, test, and version control.
+This includes prompts for version detection, migration analysis, risk assessment, and
+migration execution. Centralizing prompts makes them easier to maintain, test, and version control.
 
 Author: Your AI Python Upgrade Assistant
 """
@@ -367,6 +368,93 @@ class PromptLibrary:
         Make the code work on both Python 2.7+ and Python 3.x using appropriate compatibility patterns.
         Prefer __future__ imports and six library usage where applicable.
         """
+
+    @staticmethod
+    def get_migration_executor_initial_prompt(analysis_result) -> str:
+        """Get the initial LLM prompt for migration executor based on analysis results."""
+        
+        prompt = f"""You are an expert Python migration assistant. Based on the following analysis results, you need to systematically apply migration tools to upgrade the Python project.
+
+ANALYSIS RESULTS:
+- Current Python Version: {analysis_result.current_version.detected_version}
+- Target Python Version: {analysis_result.target_version}
+- Total Files: {analysis_result.total_files_analyzed}
+- Migration Issues Found: {len(analysis_result.migration_issues)}
+
+MIGRATION ISSUES DETECTED:
+"""
+        
+        for i, issue in enumerate(analysis_result.migration_issues, 1):
+            severity = getattr(issue, 'severity', 'unknown')
+            description = getattr(issue, 'description', 'No description')
+            file_path = getattr(issue, 'file_path', 'Unknown file')
+            line_number = getattr(issue, 'line_number', 'Unknown line')
+            
+            prompt += f"{i}. {description}\n"
+            prompt += f"   File: {file_path}, Line: {line_number}, Severity: {severity}\n"
+        
+        prompt += """
+AVAILABLE TOOLS:
+1. PyUpgradeTool: Modernizes Python code to newer syntax (f-strings, type hints, etc.)
+2. Python2To3Tool: Migrates Python 2 code to Python 3
+3. ModernizeTool: Creates Python 2/3 compatible code with __future__ imports
+
+INSTRUCTIONS:
+1. Analyze the migration issues systematically
+2. Choose the most appropriate tool(s) for each issue
+3. Apply tools in the correct order (typically: Python2To3Tool first, then PyUpgradeTool, then ModernizeTool if needed)
+4. Focus on compilation errors first, then style improvements
+5. Be precise and methodical - every change should have a clear purpose
+6. After each tool application, the code should be closer to successful compilation
+
+Start by identifying which tool would best address the most critical issues first.
+"""
+        return prompt
+
+    @staticmethod
+    def get_migration_executor_agent_prompt_for_file(py_file, code: str, errors: list, iteration: int) -> str:
+        """Create a specific prompt for the agent to work on a file."""
+        
+        # Find errors related to this file
+        file_errors = [
+            error for error in errors 
+            if error.get("file", "").endswith(py_file.name)
+        ]
+        
+        prompt = f"""You are a Python migration expert. Fix the Python code in file '{py_file.name}' to resolve compilation errors.
+
+CURRENT CODE:
+```python
+{code}
+```
+
+SPECIFIC ERRORS FOR THIS FILE:
+"""
+        
+        if file_errors:
+            for i, error in enumerate(file_errors, 1):
+                prompt += f"{i}. {error.get('error', 'Unknown error')}\n"
+                if 'line' in error:
+                    prompt += f"   Line: {error['line']}\n"
+        else:
+            prompt += "No specific errors found for this file, but it may need general migration fixes.\n"
+        
+        prompt += f"""
+AVAILABLE TOOLS:
+- pyupgrade: Modernize Python code syntax (f-strings, type hints, etc.)
+- python2to3: Convert Python 2 code to Python 3 syntax
+- modernize: Add compatibility imports and patterns
+
+INSTRUCTIONS:
+1. Analyze the code and errors carefully
+2. Use the appropriate tools to fix the issues
+3. Focus on making the code compile successfully
+4. Return the final fixed code
+
+Fix the code using the available tools and provide the corrected version.
+"""
+        
+        return prompt
 
 
 class PromptTemplates:
